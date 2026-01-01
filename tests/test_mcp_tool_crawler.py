@@ -2,11 +2,10 @@
 check mcp server and list tools
 
 Local MCP example:
-python tests/test_mcp_tool.py -u "http://127.0.0.1:7777/mcp/" \
-    --tool-name web_search_google \
-    --tool-arg "query=爱慕织姬 site:wiki.biligame.com/umamusume"
+python tests/test_mcp_tool_crawler.py -u "http://127.0.0.1:7777/mcp/" \
+    --tool-name crawl_web_page \
+    --tool-arg "url=https://wiki.biligame.com/umamusume/爱慕织姬"
 """
-
 
 import argparse
 import asyncio
@@ -24,6 +23,7 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
 load_dotenv()
+
 
 def parse_tool_args(args_str_list: list) -> Dict[str, Any]:
     """
@@ -68,7 +68,7 @@ async def async_main(
     async with streamable_http_client(server_url) as (read_stream, write_stream, _):
         async with ClientSession(read_stream, write_stream) as session:
             await session.initialize()
-            print('MCP server session已初始化')
+            print("MCP server session已初始化")
 
             tools = await load_mcp_tools(session)
             tool_dict = {tool.name: tool for tool in tools}
@@ -104,7 +104,11 @@ async def async_main(
                     print(f"正在调用工具: {tool_name}，参数: {tool_args}")
                     result = await tool_dict[tool_name].ainvoke(tool_args)
                     print("✅ 工具调用成功！返回结果:")
-                    print(json.dumps(result, indent=2, ensure_ascii=False) if isinstance(result, (dict, list)) else result)
+                    print(
+                        json.dumps(result, indent=2, ensure_ascii=False)
+                        if isinstance(result, (dict, list))
+                        else result
+                    )
 
                     # 可选：结构化解析（如果返回的是 JSON 字符串）
                     if isinstance(result, str):
@@ -145,9 +149,14 @@ async def async_main(
 @pytest.mark.asyncio
 async def test_mcp_tool_call() -> None:
     server_url = os.getenv("MCP_URL", "http://127.0.0.1:7777/mcp/")
-    tool_name = os.getenv("MCP_TOOL_NAME", "web_search_google")
+    tool_name = os.getenv("MCP_TOOL_NAME", "crawl_web_page")
     tool_args = parse_tool_args(
-        [os.getenv("MCP_TOOL_QUERY", "query=爱慕织姬 site:wiki.biligame.com/umamusume")]
+        [
+            os.getenv(
+                "MCP_TOOL_QUERY",
+                "url=https://wiki.biligame.com/umamusume/爱慕织姬",
+            )
+        ]
     )
 
     try:
@@ -164,31 +173,35 @@ async def test_mcp_tool_call() -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Test MCP Server: list tools, invoke tool, or ask agent")
+    parser = argparse.ArgumentParser(
+        description="Test MCP Server: list tools, invoke tool, or ask agent"
+    )
 
     parser.add_argument(
-        "-u", "--base_url",
+        "-u",
+        "--base_url",
         type=str,
         default="http://127.0.0.1:7777/mcp/",
-        help="MCP server base url"
+        help="MCP server base url",
     )
     parser.add_argument(
-        "-q", "--question",
+        "-q",
+        "--question",
         type=str,
         default="爱慕织姬",
-        help="问题文本，如果提供，将使用 Agent 回答"
+        help="问题文本，如果提供，将使用 Agent 回答",
     )
     parser.add_argument(
         "--tool-name",
         type=str,
-        default="web_search_google",
-        help="要直接调用的工具名称，例如 web_search_google"
+        default="crawl_web_page",
+        help="要直接调用的工具名称，例如 crawl_web_page",
     )
     parser.add_argument(
         "--tool-arg",
         action="append",
-        default=["query=爱慕织姬 site:wiki.biligame.com/umamusume"],
-        help="工具参数，格式 key=value，可多次使用"
+        default=["url=https://wiki.biligame.com/umamusume/爱慕织姬"],
+        help="工具参数，格式 key=value，可多次使用",
     )
     args = parser.parse_args()
 
@@ -196,9 +209,11 @@ if __name__ == "__main__":
     tool_args = parse_tool_args(args.tool_arg) if args.tool_arg else None
 
     # 运行主函数
-    asyncio.run(async_main(
-        server_url=args.base_url,
-        question=args.question,
-        tool_name=args.tool_name,
-        tool_args=tool_args
-    ))
+    asyncio.run(
+        async_main(
+            server_url=args.base_url,
+            question=args.question,
+            tool_name=args.tool_name,
+            tool_args=tool_args,
+        )
+    )
