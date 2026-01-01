@@ -5,7 +5,7 @@
 ## 项目结构
 
 ```
-umamusume-agnet-prompt/
+umamusume-agent-prompt/
 |-- umamusume_prompt/
 |   |-- mcp/
 |   |   |-- server.py           # Web MCP 服务（搜索 + 抓取工具）
