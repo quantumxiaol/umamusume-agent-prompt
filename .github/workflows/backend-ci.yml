@@ -1,0 +1,75 @@
+name: MCP Backend CI
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: Setup virtual environment
+        run: |
+          uv venv --python 3.12
+          source .venv/bin/activate
+
+      - name: Install dependencies
+        run: |
+          source .venv/bin/activate
+          uv sync
+
+      - name: Generate .env from secrets
+        env:
+          INFO_LLM_MODEL_NAME: ${{ secrets.INFO_LLM_MODEL_NAME }}
+          INFO_LLM_MODEL_BASE_URL: ${{ secrets.INFO_LLM_MODEL_BASE_URL }}
+          INFO_LLM_MODEL_API_KEY: ${{ secrets.INFO_LLM_MODEL_API_KEY }}
+          WRITER_LLM_MODEL_NAME: ${{ secrets.WRITER_LLM_MODEL_NAME }}
+          WRITER_LLM_MODEL_BASE_URL: ${{ secrets.WRITER_LLM_MODEL_BASE_URL }}
+          WRITER_LLM_MODEL_API_KEY: ${{ secrets.WRITER_LLM_MODEL_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GOOGLE_CSE_ID: ${{ secrets.GOOGLE_CSE_ID }}
+        run: |
+          python - <<'PY'
+          import os
+
+          keys = [
+              "INFO_LLM_MODEL_NAME",
+              "INFO_LLM_MODEL_BASE_URL",
+              "INFO_LLM_MODEL_API_KEY",
+              "WRITER_LLM_MODEL_NAME",
+              "WRITER_LLM_MODEL_BASE_URL",
+              "WRITER_LLM_MODEL_API_KEY",
+              "GOOGLE_API_KEY",
+              "GOOGLE_CSE_ID",
+          ]
+
+          with open(".env", "w", encoding="utf-8") as fh:
+              for key in keys:
+                  value = os.getenv(key, "")
+                  fh.write(f'{key}="{value}"\n')
+          PY
+
+      - name: Install Playwright browsers
+        run: |
+          source .venv/bin/activate
+          playwright install
+
+      - name: Start Web MCP service
+        run: |
+          source .venv/bin/activate
+          nohup python mcpserver.py --http -p 7777 > mcpserver.log 2>&1 &
+          sleep 10
+
+      - name: Run pytest
+        run: |
+          source .venv/bin/activate
+          pytest -q
