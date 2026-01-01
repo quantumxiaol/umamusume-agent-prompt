@@ -64,7 +64,7 @@ python mcpserver.py --http -p 7777
 2) 生成角色 Prompt
 
 ```bash
-python main.py --character 爱慕织姬 --mcp-url http://127.0.0.1:7777/mcp/
+python main.py --mcp-url http://127.0.0.1:7777/mcp/ --character 爱慕织姬
 ```
 
 输出会写入 `results/<角色名>/web_info.md` 和 `results/<角色名>/role_prompt.md`。

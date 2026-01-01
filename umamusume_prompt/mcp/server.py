@@ -54,7 +54,7 @@ Use this for Bilibili Wiki or other sites accessible without a proxy.
 async def crawl_web_page(url: str) -> dict:
     try:
         markdown = await crawl_page(url, use_proxy=False)
-        return {"status": "success", "result": markdown}
+        return {"status": "success", "result": str(markdown)}
     except Exception as exc:
         return {"status": "error", "message": str(exc)}
 
@@ -69,7 +69,7 @@ If no proxy is configured, it will fall back to a direct crawl.
 async def crawl_web_page_via_proxy(url: str) -> dict:
     try:
         markdown = await crawl_page(url, use_proxy=True)
-        return {"status": "success", "result": markdown}
+        return {"status": "success", "result": str(markdown)}
     except Exception as exc:
         return {"status": "error", "message": str(exc)}
 

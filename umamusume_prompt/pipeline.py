@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
-from typing import Tuple
+import json
+from typing import Tuple, List, Dict, Any
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from langchain_mcp_adapters.tools import load_mcp_tools
 from langchain.agents import create_agent
@@ -43,9 +44,45 @@ def _build_writer_model() -> ChatOpenAI:
     )
 
 
+def _extract_tool_info(agent_response: dict) -> Dict[str, Any]:
+    tool_calls: List[Dict[str, Any]] = []
+    tool_results: List[Dict[str, Any]] = []
+
+    for msg in agent_response.get("messages", []):
+        if isinstance(msg, AIMessage) and getattr(msg, "tool_calls", None):
+            for tool_call in msg.tool_calls:
+                tool_calls.append(
+                    {
+                        "name": tool_call.get("name"),
+                        "arguments": tool_call.get("args"),
+                    }
+                )
+        elif isinstance(msg, ToolMessage):
+            tool_results.append(
+                {
+                    "id": msg.tool_call_id,
+                    "name": msg.name,
+                    "content": msg.content,
+                    "status": getattr(msg, "status", None),
+                }
+            )
+
+    final_answer = None
+    for msg in reversed(agent_response.get("messages", [])):
+        if isinstance(msg, AIMessage):
+            final_answer = msg.content
+            break
+
+    return {
+        "tool_calls": tool_calls,
+        "tool_results": tool_results,
+        "final_answer": final_answer,
+    }
+
+
 async def collect_web_info(
     mcp_url: str, character_cn: str, character_en: str
-) -> str:
+) -> Tuple[str, Dict[str, Any]]:
     config.validate_info_llm()
     print(f"[stage1] collecting web info via MCP: {mcp_url}")
     prompt = _load_prompt("collect_web.md").format(
@@ -64,8 +101,9 @@ async def collect_web_info(
                 config={"recursion_limit": 60},
             )
             web_info = result["messages"][-1].content
+            tool_info = _extract_tool_info(result)
             print("[stage1] web info collected.")
-            return web_info
+            return web_info, tool_info
 
 
 async def build_role_prompt(
@@ -73,8 +111,12 @@ async def build_role_prompt(
 ) -> str:
     config.validate_writer_llm()
     print("[stage2] building role prompt.")
+    base_info = _load_prompt("umamusume_base_info.md")
     prompt = _load_prompt("build_prompt.md").format(
-        character_cn=character_cn, character_en=character_en, web_info=web_info
+        character_cn=character_cn,
+        character_en=character_en,
+        base_info=base_info,
+        web_info=web_info,
     )
     model = _build_writer_model()
     response = await model.ainvoke([HumanMessage(content=prompt)])
@@ -90,10 +132,16 @@ async def run_pipeline(
     character_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"[run] character: {character_cn} ({character_en})")
-    web_info = await collect_web_info(mcp_url, character_cn, character_en)
+    web_info, tool_info = await collect_web_info(mcp_url, character_cn, character_en)
     web_path = character_dir / "web_info.md"
     web_path.write_text(web_info, encoding="utf-8")
     print(f"[run] saved web info: {web_path}")
+    tool_path = character_dir / "tool_calls.json"
+    tool_path.write_text(
+        json.dumps(tool_info, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    print(f"[run] saved tool calls: {tool_path}")
 
     role_prompt = await build_role_prompt(web_info, character_cn, character_en)
     prompt_path = character_dir / "role_prompt.md"
