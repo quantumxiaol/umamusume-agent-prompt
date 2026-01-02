@@ -88,3 +88,7 @@ python tests/test_stream_mcp.py -u http://127.0.0.1:7777/mcp/ -q "爱慕织姬"
 ```bash
 pytest -q
 ```
+## 生成的示例
+
+- [爱慕织姬](./examples/Admire_Vega.md)
+- [里见光钻](./examples/Satono_Diamond.md)
