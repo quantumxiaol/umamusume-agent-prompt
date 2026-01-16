@@ -714,6 +714,7 @@ async def _crawl_with_config(
     anti_bot: bool,
     structured: bool,
     allow_render_fallback: bool,
+    headless: bool = True,
     markdown_generator: DefaultMarkdownGenerator | None,
     extraction_strategy: object | None,
     prefer_fit_markdown: bool,
