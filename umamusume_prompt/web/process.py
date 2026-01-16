@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import tempfile
 from pathlib import Path
@@ -62,6 +63,11 @@ def _prepare_llm_image_path(path: Path) -> Path:
         "Image is too large for LLM after downscaling. Try a smaller screenshot "
         "or lower capture resolution."
     )
+
+
+def _suppress_pdfminer_warnings() -> None:
+    for name in ("pdfminer", "pdfminer.pdfinterp", "pdfminer.pdffont"):
+        logging.getLogger(name).setLevel(logging.ERROR)
 
 
 def _maybe_set_attr(obj: object, name: str, value: object) -> None:
@@ -127,6 +133,8 @@ def convert_markitdown(path: str | Path, *, use_llm: bool = False) -> str:
         ) from exc
 
     file_path = _coerce_path(path)
+    if file_path.suffix.lower() == ".pdf":
+        _suppress_pdfminer_warnings()
 
     if use_llm:
         if not config.info_llm_model_api_key:

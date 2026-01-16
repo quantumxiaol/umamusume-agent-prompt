@@ -114,13 +114,17 @@ def _sanitize_filename(value: str) -> str:
 
 def _slug_from_url(url: str) -> str:
     parsed = urlparse(url)
+    domain = _sanitize_filename(parsed.netloc or "")
     title = None
     if parsed.path.endswith("/index.php"):
         params = parse_qs(parsed.query)
         title = params.get("title", [None])[0]
     if not title:
         title = unquote(parsed.path.strip("/").split("/")[-1])
-    return _sanitize_filename(title or parsed.netloc or "page")
+    title_slug = _sanitize_filename(title or parsed.netloc or "page")
+    if domain:
+        return f"{domain}_{title_slug}"
+    return title_slug
 
 
 def _apply_optional_config(config_obj: object, values: dict[str, object]) -> None:
@@ -1201,34 +1205,54 @@ async def crawl_moegirl_page_visual_markitdown(
     output_dir: Path | None = None,
     capture_pdf: bool = True,
     print_scale: float | None = None,
-    headless: bool = True,
+    headless: bool = False,
 ) -> str:
     proxy_flag = bool(config.proxy_url()) if use_proxy is None else use_proxy
     if print_scale is None:
         print_scale = 0.65
-    capture = await crawl_moegirl_page_visual(
-        url,
-        use_proxy=proxy_flag,
-        output_dir=output_dir,
-        capture_pdf=capture_pdf,
-        print_scale=print_scale,
-        headless=headless,
-    )
-    if capture_pdf:
-        target_path = capture.get("pdf_path", "")
-        if not target_path and output_dir:
-            candidate = output_dir / f"{_slug_from_url(url)}.pdf"
-            if candidate.exists():
-                target_path = str(candidate)
-        if not target_path:
-            raise RuntimeError("PDF capture failed; no pdf_path returned.")
-    else:
-        target_path = _choose_capture_path(capture)
-        if not target_path:
-            return ""
-    from umamusume_prompt.web.process import convert_markitdown
 
-    return convert_markitdown(target_path, use_llm=use_llm)
+    async def _capture_and_convert(headless_flag: bool) -> str:
+        capture = await crawl_moegirl_page_visual(
+            url,
+            use_proxy=proxy_flag,
+            output_dir=output_dir,
+            capture_pdf=capture_pdf,
+            print_scale=print_scale,
+            headless=headless_flag,
+        )
+        if capture_pdf:
+            target_path = capture.get("pdf_path", "")
+            if not target_path and output_dir:
+                candidate = output_dir / f"{_slug_from_url(url)}.pdf"
+                if candidate.exists():
+                    target_path = str(candidate)
+            if not target_path:
+                raise RuntimeError("PDF capture failed; no pdf_path returned.")
+        else:
+            target_path = _choose_capture_path(capture)
+            if not target_path:
+                return ""
+        from umamusume_prompt.web.process import convert_markitdown
+
+        return convert_markitdown(target_path, use_llm=use_llm)
+
+    try:
+        content = await _capture_and_convert(headless)
+        if content:
+            return content
+        if headless:
+            print("Warning: headless capture returned empty content; retrying headful.")
+            return await _capture_and_convert(False)
+        return content
+    except Exception as exc:
+        if headless:
+            print(f"Warning: headless capture failed: {exc}. Retrying headful.")
+            try:
+                return await _capture_and_convert(False)
+            except Exception as retry_exc:
+                print(f"Warning: headful retry failed: {retry_exc}")
+                return ""
+        raise
 
 
 async def crawl_biligame_page_visual_docling(

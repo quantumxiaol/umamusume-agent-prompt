@@ -17,6 +17,7 @@ from starlette.types import Receive, Scope, Send
 
 from umamusume_prompt.web.crawler import (
     crawl_biligame_page_visual_markitdown,
+    crawl_moegirl_page_visual_markitdown,
     crawl_page,
     crawl_page_visual_markitdown,
 )
@@ -91,6 +92,32 @@ If use_proxy is omitted, it follows proxy settings from .env.
 async def crawl_biligame_wiki(url: str, use_proxy: bool | None = None) -> dict:
     try:
         markdown = await crawl_biligame_page_visual_markitdown(url, use_proxy=use_proxy)
+        return {"status": "success", "result": str(markdown)}
+    except Exception as exc:
+        return {"status": "error", "message": str(exc)}
+
+
+@mcp.tool(
+    description="""
+Capture a Moegirl Wiki page as PDF via browser rendering, convert the PDF to Markdown
+with MarkItDown, and return the Markdown string.
+Use this for mzh.moegirl.org.cn pages. If use_proxy is omitted, it follows proxy settings
+from .env. print_scale defaults to 0.65 when omitted.
+"""
+)
+async def crawl_moegirl_wiki(
+    url: str,
+    use_proxy: bool | None = None,
+    print_scale: float | None = None,
+    headless: bool = False,
+) -> dict:
+    try:
+        markdown = await crawl_moegirl_page_visual_markitdown(
+            url,
+            use_proxy=use_proxy,
+            print_scale=print_scale,
+            headless=headless,
+        )
         return {"status": "success", "result": str(markdown)}
     except Exception as exc:
         return {"status": "error", "message": str(exc)}
