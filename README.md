@@ -23,6 +23,7 @@ umamusume-agent-prompt/
 |-- tests/
 |   |-- test_google.py          # Google 搜索测试
 |   |-- test_mcp_tool_crawler.py# MCP 抓取工具测试
+|   |-- test_mcp_tool_crawler_moegirl.py # MCP 萌娘百科抓取测试
 |   |-- test_mcp_tool_google.py # MCP 搜索工具测试
 |   |-- test_stream_mcp.py      # Agent 调用 MCP 工具测试
 |   |-- test_biligame_crawler.py# Bilibili Wiki 抓取测试
@@ -71,9 +72,11 @@ cat .env.example > .env
 
 1) Crawl4AI 以浏览器方式渲染页面，输出 PDF/PNG（可走代理）。
 2) 使用 MarkItDown 将 PDF 转成 Markdown 文本。
-3) MCP 工具 `crawl_biligame_wiki` 返回这份 Markdown 作为抓取结果。
+3) MCP 工具 `crawl_biligame_wiki` / `crawl_moegirl_wiki` 返回这份 Markdown 作为抓取结果。
 
-萌娘百科暂不接入 MCP，后续再调整。
+说明：
+- 萌娘百科默认 `print_scale=0.65`，用于避免 PDF 被裁切。
+- 萌娘百科对 headless 更敏感，默认走 headful；CI 可用 `xvfb-run` 或显式 `headless=true`。
 
 ## 探索经过（简述）
 
@@ -107,7 +110,8 @@ python mcpserver.py --http -p 7777
 
 ```bash
 python tests/test_google.py
-python tests/test_mcp_tool.py -u http://127.0.0.1:7777/mcp/
+python tests/test_mcp_tool_crawler.py -u http://127.0.0.1:7777/mcp/
+python tests/test_mcp_tool_crawler_moegirl.py -u http://127.0.0.1:7777/mcp/
 python tests/test_stream_mcp.py -u http://127.0.0.1:7777/mcp/ -q "爱慕织姬"
 ```
 
@@ -119,4 +123,7 @@ pytest -q
 ## 生成的示例
 
 - [爱慕织姬](./examples/Admire_Vega.md)
+- [米浴](./examples/Rice_Shower.md)
 - [里见光钻](./examples/Satono_Diamond.md)
+- [无声铃鹿](./examples/Silence_Suzuka.md)
+
