@@ -3,8 +3,12 @@ check mcp server and list tools
 
 Local MCP example:
 python tests/test_mcp_tool_crawler.py -u "http://127.0.0.1:7777/mcp/" \
-    --tool-name crawl_web_page \
+    --tool-name crawl_biligame_wiki \
     --tool-arg "url=https://wiki.biligame.com/umamusume/爱慕织姬"
+
+Notes:
+- crawl_biligame_wiki now captures PDF and converts to Markdown via MarkItDown.
+- Optional: --tool-arg "use_proxy=true"
 """
 
 import argparse
@@ -149,7 +153,7 @@ async def async_main(
 @pytest.mark.asyncio
 async def test_mcp_tool_call() -> None:
     server_url = os.getenv("MCP_URL", "http://127.0.0.1:7777/mcp/")
-    tool_name = os.getenv("MCP_TOOL_NAME", "crawl_web_page")
+    tool_name = os.getenv("MCP_TOOL_NAME", "crawl_biligame_wiki")
     tool_args = parse_tool_args(
         [
             os.getenv(
@@ -194,8 +198,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--tool-name",
         type=str,
-        default="crawl_web_page",
-        help="要直接调用的工具名称，例如 crawl_web_page",
+        default="crawl_biligame_wiki",
+        help="要直接调用的工具名称，例如 crawl_biligame_wiki",
     )
     parser.add_argument(
         "--tool-arg",
