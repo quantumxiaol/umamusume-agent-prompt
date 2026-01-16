@@ -198,6 +198,40 @@ def _save_capture_result(
     return None
 
 
+def _write_pdf_from_png(
+    png_path: Path, pdf_path: Path, *, resolution: float = 150.0
+) -> Path | None:
+    try:
+        from PIL import Image
+    except Exception:
+        return None
+    try:
+        with Image.open(png_path) as image:
+            image = image.convert("RGB")
+            image.save(pdf_path, "PDF", resolution=resolution)
+        return pdf_path
+    except Exception:
+        return None
+
+
+def _build_print_scale_js(scale: float) -> str:
+    scaled_width = 100.0 / scale if scale else 100.0
+    return (
+        "(function() {"
+        "var id='crawl4ai-print-scale';"
+        "var style=document.getElementById(id);"
+        "if(!style){style=document.createElement('style');style.id=id;document.head.appendChild(style);}"
+        "style.textContent="
+        "'@page{margin:0;}@media print{html,body{margin:0;padding:0;}"
+        "body{transform:scale("
+        + str(scale)
+        + ");transform-origin:top left;width:"
+        + str(scaled_width)
+        + "%;}}';"
+        "})();"
+    )
+
+
 def _build_llm_extraction_strategy(*, instruction: str) -> LLMExtractionStrategy:
     if not config.info_llm_model_api_key:
         raise EnvironmentError("Missing required environment variable: INFO_LLM_MODEL_API_KEY")
@@ -613,10 +647,12 @@ def _build_capture_run_config(
     wait_for_selector: str | None,
     png_path: Path,
     pdf_path: Path | None,
+    capture_screenshot: bool,
     capture_pdf: bool,
     screenshot_wait_for: float | None,
     delay_before_return_html: float | None,
     wait_for_images: bool | None,
+    print_scale: float | None,
 ) -> CrawlerRunConfig:
     run_config = _build_run_config(
         use_proxy,
@@ -626,7 +662,7 @@ def _build_capture_run_config(
         markdown_generator=None,
         extraction_strategy=None,
     )
-    run_config.screenshot = True
+    run_config.screenshot = bool(capture_screenshot)
     run_config.pdf = bool(capture_pdf)
     run_config.verbose = False
     if screenshot_wait_for is not None:
@@ -635,18 +671,21 @@ def _build_capture_run_config(
         run_config.delay_before_return_html = delay_before_return_html
     if wait_for_images is not None:
         run_config.wait_for_images = wait_for_images
-    _apply_optional_config(
-        run_config,
-        {
-            "screenshot": True,
-            "take_screenshot": True,
-            "capture_screenshot": True,
-            "screenshot_full_page": True,
-            "full_page": True,
-            "screenshot_path": str(png_path),
-            "screenshot_file": str(png_path),
-        },
-    )
+    if print_scale is not None and print_scale > 0:
+        run_config.js_code = _build_print_scale_js(print_scale)
+    if capture_screenshot:
+        _apply_optional_config(
+            run_config,
+            {
+                "screenshot": True,
+                "take_screenshot": True,
+                "capture_screenshot": True,
+                "screenshot_full_page": True,
+                "full_page": True,
+                "screenshot_path": str(png_path),
+                "screenshot_file": str(png_path),
+            },
+        )
     if capture_pdf and pdf_path:
         _apply_optional_config(
             run_config,
@@ -684,7 +723,7 @@ async def _crawl_with_config(
         "Referer": "https://www.google.com/",
     }
     browser_cfg = BrowserConfig(
-        headless=True,
+        headless=headless,
         user_agent=_REAL_USER_AGENT,
         viewport_width=1920,
         viewport_height=1080,
@@ -805,6 +844,9 @@ async def _crawl_page_visual(
     screenshot_wait_for: float | None,
     delay_before_return_html: float | None,
     wait_for_images: bool | None,
+    headless: bool = True,
+    pdf_from_png: bool = False,
+    print_scale: float | None = None,
 ) -> dict[str, str]:
     crawl_url = target_url or url
     source_url = source_url or url
@@ -820,7 +862,7 @@ async def _crawl_page_visual(
         "Referer": "https://www.google.com/",
     }
     browser_cfg = BrowserConfig(
-        headless=True,
+        headless=headless,
         user_agent=_REAL_USER_AGENT,
         viewport_width=1920,
         viewport_height=1080,
@@ -834,7 +876,12 @@ async def _crawl_page_visual(
     )
     async with AsyncWebCrawler(config=browser_cfg, verbose=True) as crawler:
         async def run_capture(
-            selector: str | None, wait_for: str | None
+            selector: str | None,
+            wait_for: str | None,
+            *,
+            capture_screenshot: bool,
+            capture_pdf: bool,
+            print_scale_override: float | None,
         ) -> tuple[Path | None, Path | None]:
             result = await crawler.arun(
                 url=crawl_url,
@@ -845,15 +892,19 @@ async def _crawl_page_visual(
                     wait_for_selector=wait_for,
                     png_path=png_path,
                     pdf_path=pdf_path,
+                    capture_screenshot=capture_screenshot,
                     capture_pdf=capture_pdf,
                     screenshot_wait_for=screenshot_wait_for,
                     delay_before_return_html=delay_before_return_html,
                     wait_for_images=wait_for_images,
+                    print_scale=print_scale_override,
                 ),
             )
-            png_saved = _save_capture_result(
-                result, output_path=png_path, candidates=_CAPTURE_PNG_ATTRS
-            )
+            png_saved = None
+            if capture_screenshot:
+                png_saved = _save_capture_result(
+                    result, output_path=png_path, candidates=_CAPTURE_PNG_ATTRS
+                )
             pdf_saved = None
             if capture_pdf and pdf_path:
                 pdf_saved = _save_capture_result(
@@ -866,9 +917,57 @@ async def _crawl_page_visual(
                         pdf_saved = pdf_path
             return png_saved, pdf_saved
 
-        png_saved, pdf_saved = await run_capture(css_selector, wait_for_selector)
-        if not png_saved and not pdf_saved:
-            png_saved, pdf_saved = await run_capture(None, "body")
+        if print_scale is not None and capture_pdf:
+            png_saved, _ = await run_capture(
+                css_selector,
+                wait_for_selector,
+                capture_screenshot=True,
+                capture_pdf=False,
+                print_scale_override=None,
+            )
+            if not png_saved:
+                png_saved, _ = await run_capture(
+                    None,
+                    "body",
+                    capture_screenshot=True,
+                    capture_pdf=False,
+                    print_scale_override=None,
+                )
+
+            _, pdf_saved = await run_capture(
+                css_selector,
+                wait_for_selector,
+                capture_screenshot=False,
+                capture_pdf=True,
+                print_scale_override=print_scale,
+            )
+            if not pdf_saved:
+                _, pdf_saved = await run_capture(
+                    None,
+                    "body",
+                    capture_screenshot=False,
+                    capture_pdf=True,
+                    print_scale_override=print_scale,
+                )
+        else:
+            png_saved, pdf_saved = await run_capture(
+                css_selector,
+                wait_for_selector,
+                capture_screenshot=True,
+                capture_pdf=capture_pdf,
+                print_scale_override=print_scale,
+            )
+            if not png_saved and not pdf_saved:
+                png_saved, pdf_saved = await run_capture(
+                    None,
+                    "body",
+                    capture_screenshot=True,
+                    capture_pdf=capture_pdf,
+                    print_scale_override=print_scale,
+                )
+
+    if capture_pdf and png_saved and pdf_from_png and pdf_path:
+        pdf_saved = _write_pdf_from_png(png_saved, pdf_path) or pdf_saved
 
     if not png_saved and not pdf_saved:
         raise RuntimeError("Crawl did not return screenshot or pdf output.")
@@ -1023,6 +1122,9 @@ async def crawl_biligame_page_visual(
     use_proxy: bool = False,
     output_dir: Path | None = None,
     capture_pdf: bool = True,
+    headless: bool = True,
+    pdf_from_png: bool = False,
+    print_scale: float | None = None,
 ) -> dict[str, str]:
     return await _crawl_page_visual(
         url,
@@ -1037,6 +1139,9 @@ async def crawl_biligame_page_visual(
         screenshot_wait_for=None,
         delay_before_return_html=None,
         wait_for_images=None,
+        headless=headless,
+        pdf_from_png=pdf_from_png,
+        print_scale=print_scale,
     )
 
 
@@ -1046,11 +1151,13 @@ async def crawl_moegirl_page_visual(
     use_proxy: bool = True,
     output_dir: Path | None = None,
     capture_pdf: bool = True,
+    headless: bool = True,
+    pdf_from_png: bool = False,
+    print_scale: float | None = None,
 ) -> dict[str, str]:
-    render_url = _build_moegirl_render_url(url) or url
     return await _crawl_page_visual(
         url,
-        target_url=render_url,
+        target_url=None,
         source_url=url,
         use_proxy=use_proxy,
         css_selector=_MOEGIRL_MAIN_SELECTOR,
@@ -1061,6 +1168,9 @@ async def crawl_moegirl_page_visual(
         screenshot_wait_for=6.0,
         delay_before_return_html=6.0,
         wait_for_images=True,
+        headless=headless,
+        pdf_from_png=pdf_from_png,
+        print_scale=print_scale,
     )
 
 
@@ -1086,17 +1196,36 @@ async def crawl_biligame_page_visual_markitdown(
 async def crawl_moegirl_page_visual_markitdown(
     url: str,
     *,
-    use_proxy: bool = True,
+    use_proxy: bool | None = None,
     use_llm: bool = False,
     output_dir: Path | None = None,
     capture_pdf: bool = True,
+    print_scale: float | None = None,
+    headless: bool = True,
 ) -> str:
+    proxy_flag = bool(config.proxy_url()) if use_proxy is None else use_proxy
+    if print_scale is None:
+        print_scale = 0.65
     capture = await crawl_moegirl_page_visual(
-        url, use_proxy=use_proxy, output_dir=output_dir, capture_pdf=capture_pdf
+        url,
+        use_proxy=proxy_flag,
+        output_dir=output_dir,
+        capture_pdf=capture_pdf,
+        print_scale=print_scale,
+        headless=headless,
     )
-    target_path = _choose_capture_path(capture)
-    if not target_path:
-        return ""
+    if capture_pdf:
+        target_path = capture.get("pdf_path", "")
+        if not target_path and output_dir:
+            candidate = output_dir / f"{_slug_from_url(url)}.pdf"
+            if candidate.exists():
+                target_path = str(candidate)
+        if not target_path:
+            raise RuntimeError("PDF capture failed; no pdf_path returned.")
+    else:
+        target_path = _choose_capture_path(capture)
+        if not target_path:
+            return ""
     from umamusume_prompt.web.process import convert_markitdown
 
     return convert_markitdown(target_path, use_llm=use_llm)
@@ -1159,6 +1288,7 @@ async def crawl_page_visual_markitdown(
         screenshot_wait_for=4.0,
         delay_before_return_html=4.0,
         wait_for_images=None,
+        print_scale=None,
     )
     pdf_path = capture.get("pdf_path", "")
     if not pdf_path:

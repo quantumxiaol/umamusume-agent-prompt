@@ -22,10 +22,14 @@ async def _run() -> None:
 
     target_url = os.getenv(
         "CRAWLER_BILIGAME_URL",
-        "https://wiki.biligame.com/umamusume/东海帝皇",
-        # "https://mzh.moegirl.org.cn/东海帝王",
+        # "https://wiki.biligame.com/umamusume/东海帝皇",
+        "https://mzh.moegirl.org.cn/东海帝王",
     )
-    use_proxy = os.getenv("CRAWLER_USE_PROXY", "0") not in ("0", "false", "False")
+    use_proxy_env = os.getenv("CRAWLER_USE_PROXY")
+    if use_proxy_env is None or use_proxy_env == "":
+        use_proxy = bool(config.proxy_url())
+    else:
+        use_proxy = use_proxy_env not in ("0", "false", "False")
     capture_pdf = os.getenv("CRAWLER_CAPTURE_PDF", "1") not in ("0", "false", "False")
     pdf_from_png = os.getenv("CRAWLER_PDF_FROM_PNG", "0") not in ("0", "false", "False")
     print_scale = os.getenv("CRAWLER_PRINT_SCALE")
@@ -42,6 +46,7 @@ async def _run() -> None:
             use_proxy=use_proxy,
             output_dir=output_dir,
             capture_pdf=capture_pdf,
+            headless=False,
             pdf_from_png=pdf_from_png,
             print_scale=print_scale_value,
         )
@@ -51,6 +56,7 @@ async def _run() -> None:
             use_proxy=use_proxy,
             output_dir=output_dir,
             capture_pdf=capture_pdf,
+            headless=False,
             pdf_from_png=pdf_from_png,
             print_scale=print_scale_value,
         )
