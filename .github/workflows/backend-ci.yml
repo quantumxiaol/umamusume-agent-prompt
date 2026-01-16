@@ -17,6 +17,12 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v2
 
+
+      - name: Install system dependencies (Xvfb)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+
       - name: Setup virtual environment
         run: |
           uv venv --python 3.12
@@ -58,18 +64,23 @@ jobs:
                   fh.write(f'{key}="{value}"\n')
           PY
 
-      - name: Install Playwright browsers
+      - name: Install Playwright browsers and deps
         run: |
           source .venv/bin/activate
           playwright install
+          playwright install-deps
+
 
       - name: Start Web MCP service
         run: |
           source .venv/bin/activate
-          nohup python mcpserver.py --http -p 7777 > mcpserver.log 2>&1 &
+          # --auto-servernum: 自动寻找空闲的显示端口
+          # --server-args: 设置屏幕分辨率，保证截图完整
+          nohup xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" python mcpserver.py --http -p 7777 > mcpserver.log 2>&1 &
           sleep 10
+
 
       - name: Run pytest
         run: |
           source .venv/bin/activate
-          pytest -q
+          xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" pytest -q
