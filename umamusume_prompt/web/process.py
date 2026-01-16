@@ -64,6 +64,60 @@ def _prepare_llm_image_path(path: Path) -> Path:
     )
 
 
+def _maybe_set_attr(obj: object, name: str, value: object) -> None:
+    if hasattr(obj, name):
+        try:
+            setattr(obj, name, value)
+        except Exception:
+            pass
+
+
+def _enable_docling_ocr(pipeline_options: object) -> None:
+    for attr_name in ("do_ocr", "use_ocr", "ocr", "enable_ocr", "ocr_enabled"):
+        _maybe_set_attr(pipeline_options, attr_name, True)
+
+    ocr_options = getattr(pipeline_options, "ocr_options", None)
+    if ocr_options is None:
+        try:
+            from docling.datamodel.pipeline_options import OcrOptions
+
+            ocr_options = OcrOptions()
+            _maybe_set_attr(pipeline_options, "ocr_options", ocr_options)
+        except Exception:
+            ocr_options = None
+
+    if ocr_options is not None:
+        for attr_name in ("enabled", "use_ocr", "do_ocr"):
+            _maybe_set_attr(ocr_options, attr_name, True)
+
+
+def _build_pdf_pipeline_options(
+    pdf_options_cls: type,
+    *,
+    artifacts_path: str | None,
+    use_ocr: bool,
+) -> object:
+    kwargs: dict[str, object] = {}
+    if artifacts_path:
+        kwargs["artifacts_path"] = artifacts_path
+    if use_ocr:
+        kwargs["do_ocr"] = True
+
+    try:
+        pipeline_options = pdf_options_cls(**kwargs)
+    except TypeError:
+        pipeline_options = pdf_options_cls()
+        if artifacts_path:
+            _maybe_set_attr(pipeline_options, "artifacts_path", artifacts_path)
+        if use_ocr:
+            _enable_docling_ocr(pipeline_options)
+    else:
+        if use_ocr:
+            _enable_docling_ocr(pipeline_options)
+
+    return pipeline_options
+
+
 def convert_markitdown(path: str | Path, *, use_llm: bool = False) -> str:
     try:
         from markitdown import MarkItDown
@@ -101,7 +155,7 @@ def convert_markitdown(path: str | Path, *, use_llm: bool = False) -> str:
     return result.text_content or ""
 
 
-def convert_docling(path: str | Path) -> str:
+def convert_docling(path: str | Path, *, use_ocr: bool = False) -> str:
     try:
         from docling.document_converter import DocumentConverter
     except ImportError as exc:
@@ -119,11 +173,16 @@ def convert_docling(path: str | Path) -> str:
                 "Docling artifacts path does not exist. Set DOCLING_ARTIFACTS_PATH "
                 f"to a valid directory (current: {artifacts_root})."
             )
+    if file_path.suffix.lower() == ".pdf" and (artifacts_path or use_ocr):
         from docling.datamodel.base_models import InputFormat
         from docling.datamodel.pipeline_options import PdfPipelineOptions
         from docling.document_converter import PdfFormatOption
 
-        pipeline_options = PdfPipelineOptions(artifacts_path=artifacts_path)
+        pipeline_options = _build_pdf_pipeline_options(
+            PdfPipelineOptions,
+            artifacts_path=artifacts_path or None,
+            use_ocr=use_ocr,
+        )
         converter = DocumentConverter(
             format_options={
                 InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)

@@ -1,12 +1,12 @@
 import os
 import sys
 from pathlib import Path
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
 
 from umamusume_prompt.web.process import convert_docling
+from umamusume_prompt.web.smart_split import smart_image_to_pdf
 
 
 def _resolve_image_path() -> Path:
@@ -33,23 +33,21 @@ def _resolve_image_path() -> Path:
     )
 
 
-def _convert_png_to_pdf(image_path: Path, output_path: Path, *, max_pixels: int) -> None:
-    try:
-        from PIL import Image
-    except ImportError as exc:
-        raise ImportError("Pillow is required for PNG->PDF. Try: pip install pillow") from exc
-
-    with Image.open(image_path) as image:
-        width, height = image.size
-        pixels = width * height
-        if max_pixels and pixels > max_pixels:
-            scale = (max_pixels / pixels) ** 0.5
-            width = max(1, int(width * scale))
-            height = max(1, int(height * scale))
-            image = image.resize((width, height), Image.LANCZOS)
-            print(f"Downscaled image to {width}x{height} to stay under {max_pixels} pixels")
-        rgb = image.convert("RGB")
-        rgb.save(output_path, format="PDF")
+def _split_png_to_pdf(
+    image_path: Path,
+    output_path: Path,
+    *,
+    max_page_height_ratio: float,
+    overlap: int,
+) -> None:
+    ok = smart_image_to_pdf(
+        image_path,
+        output_path,
+        max_page_height_ratio=max_page_height_ratio,
+        overlap=overlap,
+    )
+    if not ok:
+        raise RuntimeError(f"Failed to split PNG into PDF: {image_path}")
 
 
 def _run() -> None:
@@ -57,14 +55,20 @@ def _run() -> None:
     load_dotenv(root_dir / ".env")
 
     image_path = _resolve_image_path()
-    results_dir = Path("results") / "test"
-    results_dir.mkdir(parents=True, exist_ok=True)
-    pdf_path = results_dir / "visual_png.pdf"
-    max_pixels = int(os.getenv("CRAWLER_IMAGE_MAX_PIXELS", "160000000"))
-    _convert_png_to_pdf(image_path, pdf_path, max_pixels=max_pixels)
+    pdf_path = image_path.with_name(f"{image_path.stem}_split.pdf")
+    max_page_height_ratio = float(os.getenv("CRAWLER_PNG_PAGE_HEIGHT_RATIO", "1.5"))
+    overlap = int(os.getenv("CRAWLER_PNG_PAGE_OVERLAP", "0"))
+    _split_png_to_pdf(
+        image_path,
+        pdf_path,
+        max_page_height_ratio=max_page_height_ratio,
+        overlap=overlap,
+    )
     print(f"Saved PDF: {pdf_path}")
 
-    content = convert_docling(pdf_path)
+    content = convert_docling(pdf_path, use_ocr=True)
+    results_dir = Path("results") / "test"
+    results_dir.mkdir(parents=True, exist_ok=True)
     output_path = results_dir / "visual_docling_png.txt"
     output_path.write_text(content, encoding="utf-8")
     print(f"Wrote {len(content)} chars to {output_path}")
