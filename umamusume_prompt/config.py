@@ -18,6 +18,9 @@ class Config:
         "INFO_LLM_MODEL_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"
     )
     info_llm_model_api_key: str = os.getenv("INFO_LLM_MODEL_API_KEY", "")
+    info_llm_vision_model_name: str = os.getenv(
+        "INFO_LLM_VISION_MODEL_NAME", ""
+    )
 
     writer_llm_model_name: str = os.getenv("WRITER_LLM_MODEL_NAME", "qwen-max-latest")
     writer_llm_model_base_url: str = os.getenv(
@@ -38,6 +41,9 @@ class Config:
     # Google Search settings
     google_api_key: str = os.getenv("GOOGLE_API_KEY", "")
     google_cse_id: str = os.getenv("GOOGLE_CSE_ID", "")
+
+    crawler_pruned_threshold: float = float(os.getenv("CRAWLER_PRUNED_THRESHOLD", "0.3"))
+    crawler_pruned_min_words: int = int(os.getenv("CRAWLER_PRUNED_MIN_WORDS", "5"))
 
     def validate_web_tools(self) -> None:
         missing = []

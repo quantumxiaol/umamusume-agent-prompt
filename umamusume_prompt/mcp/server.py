@@ -15,7 +15,11 @@ from starlette.requests import Request
 from starlette.routing import Mount, Route
 from starlette.types import Receive, Scope, Send
 
-from umamusume_prompt.web.crawler import crawl_page
+from umamusume_prompt.web.crawler import (
+    crawl_biligame_page_visual_markitdown,
+    crawl_page,
+    crawl_page_visual_markitdown,
+)
 from umamusume_prompt.web.search import google_search_urls
 
 mcp = FastMCP("Umamusume Web MCP")
@@ -48,7 +52,7 @@ async def web_search_google(query: str) -> dict:
 @mcp.tool(
     description="""
 Crawl a page from a URL and return the page content as markdown.
-Use this for Bilibili Wiki or other sites accessible without a proxy.
+Use this for general pages that do not require site-specific handling.
 """
 )
 async def crawl_web_page(url: str) -> dict:
@@ -61,14 +65,32 @@ async def crawl_web_page(url: str) -> dict:
 
 @mcp.tool(
     description="""
-Crawl a page from a URL via proxy and return the page content as markdown.
-Use this for Moegirl wiki or other sites that may require a proxy.
-If no proxy is configured, it will fall back to a direct crawl.
+Capture a webpage as PDF via browser rendering, convert the PDF to Markdown with MarkItDown,
+and return the Markdown string.
+Uses a proxy if use_proxy is true. If use_proxy is omitted, it follows proxy settings from .env.
 """
 )
-async def crawl_web_page_via_proxy(url: str) -> dict:
+async def crawl_web_page_visual_markitdown(
+    url: str, use_proxy: bool | None = None
+) -> dict:
     try:
-        markdown = await crawl_page(url, use_proxy=True)
+        markdown = await crawl_page_visual_markitdown(url, use_proxy=use_proxy)
+        return {"status": "success", "result": str(markdown)}
+    except Exception as exc:
+        return {"status": "error", "message": str(exc)}
+
+
+@mcp.tool(
+    description="""
+Capture a Bilibili Wiki page as PDF via browser rendering, convert the PDF to Markdown
+with MarkItDown, and return the Markdown string.
+Use this for wiki.biligame.com/umamusume pages.
+If use_proxy is omitted, it follows proxy settings from .env.
+"""
+)
+async def crawl_biligame_wiki(url: str, use_proxy: bool | None = None) -> dict:
+    try:
+        markdown = await crawl_biligame_page_visual_markitdown(url, use_proxy=use_proxy)
         return {"status": "success", "result": str(markdown)}
     except Exception as exc:
         return {"status": "error", "message": str(exc)}

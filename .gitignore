@@ -7,9 +7,14 @@ wheels/
 *.egg-info
 .pytest_cache/
 
+.DS_Store
 
 # Virtual environments
 .venv
 .env
 
 results/
+
+.crawl4ai/
+webpages/
+modelweights/
