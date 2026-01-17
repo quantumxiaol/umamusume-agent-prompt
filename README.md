@@ -123,6 +123,7 @@ pytest -q
 ## 生成的示例
 
 - [爱慕织姬](./examples/Admire_Vega.md)
+- [美浦波旁](./examples/Mihono_Bourbon.md)
 - [米浴](./examples/Rice_Shower.md)
 - [里见光钻](./examples/Satono_Diamond.md)
 - [无声铃鹿](./examples/Silence_Suzuka.md)
