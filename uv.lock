@@ -4533,6 +4533,7 @@ dependencies = [
     { name = "starlette" },
     { name = "tqdm" },
     { name = "trafilatura" },
+    { name = "umamusume-web-crawler" },
     { name = "uvicorn" },
 ]
 
@@ -4559,7 +4560,27 @@ requires-dist = [
     { name = "starlette", specifier = ">=0.37.2" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "trafilatura", specifier = ">=2.0.0" },
+    { name = "umamusume-web-crawler", git = "https://github.com/quantumxiaol/umamusume-web-crawler" },
     { name = "uvicorn", specifier = ">=0.30.0" },
+]
+
+[[package]]
+name = "umamusume-web-crawler"
+version = "0.1.0"
+source = { git = "https://github.com/quantumxiaol/umamusume-web-crawler#df3c515246490247b3c45c34106baf5111b55167" }
+dependencies = [
+    { name = "crawl4ai" },
+    { name = "google-api-python-client" },
+    { name = "httplib2" },
+    { name = "langchain-mcp-adapters" },
+    { name = "markitdown", extra = ["all"] },
+    { name = "mcp" },
+    { name = "mcp-server" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "python-dotenv" },
+    { name = "starlette" },
+    { name = "uvicorn" },
 ]
 
 [[package]]

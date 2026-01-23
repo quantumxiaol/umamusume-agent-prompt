@@ -3,9 +3,11 @@ import sys
 
 import pytest
 
+# Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from umamusume_prompt.web.crawler import crawl_page
+# Updated import
+from umamusume_web_crawler.web.crawler import crawl_page
 
 
 @pytest.mark.asyncio
@@ -15,7 +17,7 @@ async def test_crawl_page_returns_content() -> None:
         "https://wiki.biligame.com/umamusume/爱慕织姬",
     )
 
-    content = await crawl_page(target_url, use_proxy=False)
+    content = await crawl_page(target_url)
     assert isinstance(content, str)
     assert content.strip(), "Expected non-empty crawl content"
     print(content[:2000])

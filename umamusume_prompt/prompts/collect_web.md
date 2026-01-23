@@ -7,8 +7,14 @@
 - 英文名: {character_en}
 
 # 工作方式
-1.  **搜索**：使用 `web_search_google` 搜索 `site:wiki.biligame.com/umamusume` 和 `site:mzh.moegirl.org.cn`。
-2.  **爬取**：优先爬取 Bilibili Wiki（数据全），辅以 萌娘百科（梗和杂谈多）。使用视觉提取或文本提取工具获取全部内容。
+1.  **搜索**：
+    *   首先使用 `biligame_wiki_search` 搜索 Bilibili Wiki。
+    *   同时使用 `moegirl_wiki_search` 搜索 萌娘百科。
+    *   如果上述搜索无果或信息不足，再使用 `web_search_google` 进行补充搜索。
+2.  **爬取**：
+    *   使用 `crawl_biligame_wiki` 爬取 Bilibili Wiki 页面（优先，数据最全）。
+    *   使用 `crawl_moegirl_wiki` 爬取 萌娘百科页面（补充梗和杂谈）。
+    *   对于非百科类的网页，使用 `crawl_page`。
 3.  **数据处理原则（至关重要）**：
     * **禁止简写**：不要把“在菊花赏中以微弱优势战胜了对手”这种概括性的话作为唯一描述，要保留“在最后直线与xx进行了激烈的争夺，最终以颈差获胜，打破了xx的记录”这样的细节。
     * **保留原文**：对于简介、性格描述、名台词，**直接摘录原文**，不要用自己的话重写。

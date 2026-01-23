@@ -7,8 +7,9 @@ python tests/test_mcp_tool_crawler.py -u "http://127.0.0.1:7777/mcp/" \
     --tool-arg "url=https://wiki.biligame.com/umamusume/爱慕织姬"
 
 Notes:
-- crawl_biligame_wiki now captures PDF and converts to Markdown via MarkItDown.
+- crawl_biligame_wiki now uses MediaWiki API to fetch content and converts to Markdown.
 - Optional: --tool-arg "use_proxy=true"
+- Optional: --tool-arg "max_depth=1"
 """
 
 import argparse

@@ -3,37 +3,43 @@ import os
 import sys
 from pathlib import Path
 
+# Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from umamusume_prompt.web.crawler import (
-    crawl_moegirl_page,
-    crawl_moegirl_page_llm,
-    crawl_moegirl_page_pruned,
+from umamusume_web_crawler.web.moegirl import (
+    fetch_moegirl_wikitext_expanded,
+    search_moegirl_titles,
+)
+from umamusume_web_crawler.web.parse_wiki_infobox import (
+    parse_wiki_page,
+    wiki_page_to_llm_markdown,
 )
 
-
 async def _run() -> None:
-    target_url = os.getenv(
-        "CRAWLER_MOEGIRL_URL",
-        "https://mzh.moegirl.org.cn/东海帝王",
-    )
-    use_proxy = os.getenv("CRAWLER_USE_PROXY", "1") not in ("0", "false", "False")
-    mode = os.getenv("CRAWLER_MODE", "structured").lower()
-    if mode == "llm":
-        content = await crawl_moegirl_page_llm(target_url, use_proxy=use_proxy)
-        output_name = "moegirl_llm.json"
-    elif mode == "pruned":
-        content = await crawl_moegirl_page_pruned(target_url, use_proxy=use_proxy)
-        output_name = "moegirl_pruned.txt"
-    else:
-        content = await crawl_moegirl_page(target_url, use_proxy=use_proxy)
-        output_name = "moegirl.txt"
+    # 1. Test Search
+    keyword = "东海帝王"
+    print(f"Testing search for '{keyword}'...")
+    titles = await search_moegirl_titles(keyword, limit=5)
+    print(f"Search results: {titles}")
+    
+    if not titles:
+        print("No titles found, skipping crawl test.")
+        return
+
+    # 2. Test Crawl (Wikitext -> Markdown)
+    target_title = titles[0]
+    target_url = f"https://mzh.moegirl.org.cn/{target_title}"
+    print(f"Testing crawl for '{target_title}' ({target_url})...")
+    
+    wikitext = await fetch_moegirl_wikitext_expanded(target_url, max_depth=1, max_pages=5)
+    page = parse_wiki_page(wikitext, site="moegirl")
+    markdown = wiki_page_to_llm_markdown(target_title, page, site="moegirl")
+
     output_dir = Path("results") / "test"
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / output_name
-    output_path.write_text(content, encoding="utf-8")
-    print(f"Wrote {len(content)} chars to {output_path}")
-
+    output_path = output_dir / "moegirl_api.md"
+    output_path.write_text(markdown, encoding="utf-8")
+    print(f"Wrote {len(markdown)} chars to {output_path}")
 
 if __name__ == "__main__":
     asyncio.run(_run())
