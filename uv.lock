@@ -4566,8 +4566,8 @@ requires-dist = [
 
 [[package]]
 name = "umamusume-web-crawler"
-version = "0.1.0"
-source = { git = "https://github.com/quantumxiaol/umamusume-web-crawler#df3c515246490247b3c45c34106baf5111b55167" }
+version = "0.2.0"
+source = { git = "https://github.com/quantumxiaol/umamusume-web-crawler#f45a158c17913d88048d9b346aa32e6fe4cb44e7" }
 dependencies = [
     { name = "crawl4ai" },
     { name = "google-api-python-client" },

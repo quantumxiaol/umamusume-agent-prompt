@@ -14,7 +14,9 @@ wheels/
 .env
 
 results/
+results_SillyTavern/
+results_images/
+results_SillyTavern_cards/
 
 .crawl4ai/
 webpages/
-modelweights/

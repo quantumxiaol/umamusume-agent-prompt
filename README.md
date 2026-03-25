@@ -12,8 +12,10 @@ umamusume-agent-prompt/
 |   |-- prompts/
 |   |   |-- collect_web.md      # 阶段一：资料收集
 |   |   |-- build_prompt.md     # 阶段二：Prompt 生成
+|   |   |-- build_SillyTavern_character.md # 阶段二：SillyTavern 角色卡生成
 |   |-- characters.py           # 角色映射读取/解析
 |   |-- pipeline.py             # 两阶段流程
+|   |-- pipeline_sillytavern.py# SillyTavern 两阶段流程
 |   |-- cli.py                  # CLI 入口
 |   |-- config.py               # 环境变量配置
 |-- tests/
@@ -94,6 +96,14 @@ python main.py --mcp-url http://127.0.0.1:7777/mcp/ --character 爱慕织姬
 ```
 
 输出会写入 `results/<角色名>/web_info.md` 和 `results/<角色名>/role_prompt.md`。
+
+3) 生成 SillyTavern 角色卡文案
+
+```bash
+python main.py --mcp-url http://127.0.0.1:7777/mcp/ --character 爱慕织姬 --build-target sillytavern
+```
+
+默认输出会写入 `results_SillyTavern/<角色名>/web_info.md` 和 `results_SillyTavern/<角色名>/role_prompt.md`。
 
 ## 测试
 

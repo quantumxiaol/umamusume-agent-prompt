@@ -10,6 +10,7 @@ import httpx
 from umamusume_prompt.characters import load_characters, resolve_character
 from umamusume_prompt.config import config
 from umamusume_prompt.pipeline import run_pipeline
+from umamusume_prompt.pipeline_sillytavern import run_pipeline_sillytavern
 
 
 def parse_args() -> argparse.Namespace:
@@ -31,8 +32,18 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--output",
-        default="results",
-        help="Output directory for collected info and prompts",
+        default=None,
+        help=(
+            "Output directory for collected info and prompts. "
+            "Default is 'results' for prompt mode and "
+            "'results_SillyTavern' for sillytavern mode."
+        ),
+    )
+    parser.add_argument(
+        "--build-target",
+        choices=["prompt", "sillytavern"],
+        default="prompt",
+        help="Build target: prompt (original) or sillytavern (character card style).",
     )
     parser.add_argument(
         "--wait-mcp",
@@ -82,7 +93,16 @@ async def _run(args: argparse.Namespace) -> None:
     _wait_for_mcp(args.mcp_url, args.wait_mcp, args.wait_interval)
 
     mapping = load_characters(Path(args.characters_json))
-    output_dir = Path(args.output)
+    if args.output:
+        output_dir = Path(args.output)
+    else:
+        output_dir = Path(
+            "results_SillyTavern" if args.build_target == "sillytavern" else "results"
+        )
+
+    pipeline_runner = run_pipeline
+    if args.build_target == "sillytavern":
+        pipeline_runner = run_pipeline_sillytavern
 
     for name in args.character:
         cn_name, en_name, found = resolve_character(name, mapping)
@@ -91,10 +111,13 @@ async def _run(args: argparse.Namespace) -> None:
                 f"Character '{name}' not found in {args.characters_json}. "
                 "Please add it to the mapping first."
             )
-        web_path, prompt_path = await run_pipeline(
+        web_path, prompt_path = await pipeline_runner(
             args.mcp_url, cn_name, en_name, output_dir
         )
-        print(f"[ok] {cn_name} ({en_name}) -> {web_path} | {prompt_path}")
+        print(
+            f"[ok][{args.build_target}] {cn_name} ({en_name}) -> "
+            f"{web_path} | {prompt_path}"
+        )
 
 
 def main() -> None:
