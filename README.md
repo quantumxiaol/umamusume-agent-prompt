@@ -1,6 +1,20 @@
 # Umamusume Agent Prompt
 
-从角色名出发，通过 Web MCP 进行资料整理，并生成可用于角色扮演的 Prompt。
+从角色名出发，通过 Web MCP 进行资料整理，并生成可用于角色扮演的 Prompt。同时支持生成SillyTavern的角色卡。
+
+## 应用示例
+
+在我自己的项目[umamusume-agent](https://github.com/quantumxiaol/umamusume-agent)中
+<img src=resources/pngs/example.png>
+
+在[SillyTavern](https://github.com/SillyTavern/SillyTavern)项目中
+
+导入角色卡
+<img src=resources/pngs/character_import.png>
+
+和角色对话
+<img src=resources/pngs/character_chat.png>
+
 
 ## 项目结构
 
@@ -27,6 +41,8 @@ umamusume-agent-prompt/
 |   |-- test_stream_mcp.py      # Agent 调用 MCP 工具测试
 |   |-- test_biligame_crawler.py# Bilibili Wiki API 抓取测试
 |   |-- test_moegirl_crawler.py # 萌娘百科 API 抓取测试
+|-- scripts/
+|   |-- build_SillyTavern_card.py # 从 role_prompt+图片组装 SillyTavern 角色卡 (CCV2)
 |-- main.py                     # CLI 入口
 |-- mcpserver.py                # MCP 入口
 |-- download_models.py          # Docling 模型下载脚本 (如需使用 Docling)
@@ -104,6 +120,20 @@ python main.py --mcp-url http://127.0.0.1:7777/mcp/ --character 爱慕织姬 --b
 ```
 
 默认输出会写入 `results_SillyTavern/<角色名>/web_info.md` 和 `results_SillyTavern/<角色名>/role_prompt.md`。
+
+4) 将 `results_SillyTavern` 文案 + `results_images` 绝胜服图组装为 SillyTavern 角色卡
+
+```bash
+uv run python scripts/build_SillyTavern_card.py
+```
+
+单角色构建示例：
+
+```bash
+uv run python scripts/build_SillyTavern_card.py --character Admire_Vega
+```
+
+输出会写入 `results_SillyTavern/<角色名>/character_card_v2.json` 和 `results_SillyTavern/<角色名>/character_card_v2.png`。
 
 ## 测试
 
